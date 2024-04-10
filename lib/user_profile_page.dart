@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:logintest/ReadPostsPage.dart';
+import 'package:logintest/edit_profile_page.dart';
 
 class UserProfilePage extends StatefulWidget {
   @override
@@ -10,6 +12,7 @@ class UserProfilePage extends StatefulWidget {
 
 class _UserProfilePageState extends State<UserProfilePage> {
   late Future<Map<String, dynamic>> _userDataFuture;
+  Map<String, dynamic>? currentUserData; // Variável para armazenar os dados atuais do usuário
 
   @override
   void initState() {
@@ -26,6 +29,42 @@ class _UserProfilePageState extends State<UserProfilePage> {
     return {};
   }
 
+      Future<int> _fetchUserGlobalRank(String userId) async {
+        QuerySnapshot snapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .orderBy('points', descending: true)
+            .get();
+
+        int rank = 1;
+        for (var doc in snapshot.docs) {
+          if (doc.id == userId) {
+            return rank;
+          }
+          rank++;
+        }
+
+        return -1; // Retorne -1 caso o usuário não seja encontrado no ranking
+      }
+
+      Future<int> _fetchUserCityRank(String userId, String city) async {
+        QuerySnapshot snapshot = await FirebaseFirestore.instance
+            .collection('users')
+            .where('city', isEqualTo: city)
+            .orderBy('points', descending: true)
+            .get();
+
+        int rank = 1;
+        for (var doc in snapshot.docs) {
+          if (doc.id == userId) {
+            return rank;
+          }
+          rank++;
+        }
+
+        return -1; // Retorne -1 caso o usuário não seja encontrado no ranking
+      }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -35,13 +74,30 @@ class _UserProfilePageState extends State<UserProfilePage> {
           icon: Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pushReplacementNamed('/home'),
         ),
+        actions: <Widget>[
+          IconButton(
+            icon: Icon(Icons.edit),
+            onPressed: () {
+              if (currentUserData != null) {
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (context) => EditProfilePage(userData: currentUserData!),
+                ));
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Não foi possível carregar os dados do usuário.'))
+                );
+              }
+            },
+          ),
+        ],
       ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _userDataFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.done) {
             if (snapshot.hasData && snapshot.data!.isNotEmpty) {
-              return _buildUserProfile(context, snapshot.data!);
+              currentUserData = snapshot.data; // Armazenar os dados recebidos
+              return _buildUserProfile(context, currentUserData!); // Passar currentUserData ao invés de snapshot.data!
             } else if (snapshot.hasError) {
               return Center(child: Text("Erro ao carregar os dados: ${snapshot.error}"));
             }
@@ -52,22 +108,29 @@ class _UserProfilePageState extends State<UserProfilePage> {
       ),
     );
   }
+  
+Widget _buildUserProfile(BuildContext context, Map<String, dynamic> userData) {
+  int points = userData['points'] ?? 0;
+  List<String> badges = List<String>.from(userData['badges'] ?? []);
 
-  Widget _buildUserProfile(BuildContext context, Map<String, dynamic> userData) {
-    int points = userData['points'] ?? 0;
-    List<String> badges = List<String>.from(userData['badges'] ?? []);
+  String userId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  String city = userData['city'] ?? '';
 
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          ProfileDetails(userData),
-          Divider(),
-          _buildRankingSection(context, points, badges),
-          _buildReadPostsSection(context),
-        ],
-      ),
-    );
-  }
+  return SingleChildScrollView(
+    child: Column(
+      children: [
+        ProfileDetails(userData),
+        Divider(),
+        _buildRankingSection(context, points, badges),
+        // A seção ReadPosts foi removida da visualização direta
+        _buildMenuSection(context, userId, city), // Passa os argumentos corretos aqui
+        // Exibe o conteúdo baseado na seleção do menu
+        // Adicione aqui outras seções conforme necessário
+      ],
+    ),
+  );
+}
+
 
   Widget _buildRankingSection(BuildContext context, int points, List<String> badges) {
     return Column(
@@ -95,75 +158,71 @@ class _UserProfilePageState extends State<UserProfilePage> {
     );
   }
 
-  Widget _buildReadPostsSection(BuildContext context) {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return Text('Você precisa estar logado para ver isso.');
-    }
-
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('readPosts')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return CircularProgressIndicator();
-        }
-        if (snapshot.hasError) {
-          return Text('Ocorreu um erro ao carregar os posts lidos.');
-        }
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Text('Nenhum post lido ainda.');
-        }
-
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          itemCount: snapshot.data!.docs.length,
-          itemBuilder: (context, index) {
-            var readPostData = snapshot.data!.docs[index].data() as Map<String, dynamic>?;
-            if (readPostData == null || !readPostData.containsKey('postId')) {
-              return ListTile(
-                title: Text('Detalhes do post não disponíveis.'),
-              );
+Widget _buildMenuSection(BuildContext context, String userId, String city) {
+  return Container(
+    padding: EdgeInsets.symmetric(vertical: 10.0),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        ElevatedButton(
+          child: Text('Ranking Geral'),
+          onPressed: () async {
+            try {
+              int rank = await _fetchUserGlobalRank(userId);
+              _showRankDialog(context, 'Ranking Geral', rank);
+            } catch (error) {
+              // Handle errors, e.g., display an error message
+              print('Error fetching global rank: $error'); 
             }
-            String? postId = readPostData['postId'] as String?;
+          },
+        ),
+        // ... Similar changes for other buttons
 
-            return FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance.collection('posts').doc(postId).get(),
-              builder: (context, postSnapshot) {
-                if (postSnapshot.connectionState == ConnectionState.waiting) {
-                  return ListTile(title: Text('Carregando...'));
-                }
-
-                if (postSnapshot.hasError || !postSnapshot.hasData) {
-                  return ListTile(title: Text('Erro ao carregar dados do post.'));
-                }
-
-                var postData = postSnapshot.data!.data() as Map<String, dynamic>?;
-                if (postData == null) {
-                  return ListTile(title: Text('Post não encontrado.'));
-                }
-                String postTitle = postData['title'] as String? ?? 'Sem título';
-                DateTime? readOnDate = (readPostData['readOn'] as Timestamp?)?.toDate();
-                String formattedDate = readOnDate != null ? DateFormat('dd/MM/yyyy').format(readOnDate) : 'Data desconhecida';
-
-                return ListTile(
-                  title: Text(postTitle),
-                  subtitle: Text('Lido em: $formattedDate'),
-                );
-              },
+        ElevatedButton(
+          child: Text('Posts Lidos'),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => ReadPostsPage(),
+              ),
             );
           },
-        );
-      },
-    );
-  }
-
-
+        ),
+      ],
+    ),
+  );
 }
+
+
+    void _showRankDialog(BuildContext context, String title, int rank) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text(title),
+            content: rank != -1
+                ? Text('Sua posição é: $rank')
+                : Text('Você ainda não está no ranking.'),
+            actions: <Widget>[
+              TextButton(
+                child: Text('Fechar'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    }
+}
+
+void _navigateToReadPosts(BuildContext context, String userId) {
+  // Navegar para a página de posts lidos
+  // Você precisará implementar esta página e definir a rota
+  Navigator.of(context).pushNamed('/readPostsPage', arguments: userId);
+}
+
 
 class ProfileDetails extends StatelessWidget {
   final Map<String, dynamic> userData;
@@ -194,33 +253,41 @@ class ProfileDetails extends StatelessWidget {
                 style: theme.textTheme.headline6?.copyWith(color: Colors.white),
               ),
               Text(
-                userData['email'] ?? 'Email',
-                style: theme.textTheme.subtitle1?.copyWith(color: Colors.white70),
+                userData['surname'] ?? 'Sobrenome',
+                style: theme.textTheme.titleMedium?.copyWith(color: Colors.white70),
               ),
             ],
           ),
         ),
-        Padding(
-          padding: EdgeInsets.all(20),
-          child: Column(
-            children: [
-              InfoTile(icon: Icons.location_city, title: "Cidade", value: userData['city'] ?? 'Cidade'),
-              InfoTile(icon: Icons.cake, title: "Idade", value: '${userData['age'] ?? 'Idade'} Anos'),
-              InfoTile(icon: Icons.person, title: "Gênero", value: userData['gender'] ?? 'Gênero'),
-            ],
-          ),
-        ),
+        _buildInfoGrid(userData), // Chamada ao novo método que cria a GridView
+      ],
+    );
+  }
+
+  Widget _buildInfoGrid(Map<String, dynamic> userData) {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      childAspectRatio: 3,
+      children: <Widget>[
+        InfoTile(icon: Icons.location_city, title: "Cidade", value: userData['city'] ?? 'Cidade'),
+        InfoTile(icon: Icons.person_3_rounded, title: "Nome da Mãe", value: userData['motherName'] ?? 'Nome da mãe'),
+        InfoTile(icon: Icons.cake, title: "Idade", value: '${userData['age'] ?? 'Idade'} Anos'),
+        InfoTile(icon: Icons.location_city, title: "Quilombo", value: userData['quilomboName'] ?? 'Quilombo'),
+        InfoTile(icon: Icons.person, title: "Gênero", value: userData['gender'] ?? 'Gênero'),
       ],
     );
   }
 }
+
 
 class InfoTile extends StatelessWidget {
   final IconData icon;
   final String title;
   final String value;
 
-  InfoTile({required this.icon, required this.title, required this.value});
+  const InfoTile({Key? key, required this.icon, required this.title, required this.value}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

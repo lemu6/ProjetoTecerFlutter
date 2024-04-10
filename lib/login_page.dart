@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'register_page.dart';
+import 'RegisterPageStep1.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -35,7 +35,7 @@ class _LoginPageState extends State<LoginPage> {
           gradient: LinearGradient(
             begin: Alignment.topRight,
             end: Alignment.bottomLeft,
-            colors: [Colors.indigoAccent, Colors.deepPurple],
+            colors: [Colors.deepPurple, Colors.deepPurple],
           ),
         ),
         child: Center(
@@ -118,7 +118,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 SizedBox(height: 16),
                 TextButton(
-                  onPressed: () => Navigator.of(context).pushNamed('/register'),
+                  onPressed: () => Navigator.of(context).pushNamed('/registerStep1'),
                   child: Text(
                     'Não tem uma conta? Registre-se aqui',
                     style: TextStyle(color: Colors.white70),

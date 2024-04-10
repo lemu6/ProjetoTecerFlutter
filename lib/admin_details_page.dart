@@ -1,6 +1,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:logintest/post_details_page.dart';
 import 'admin_user_model.dart';
 import 'post_model.dart';
 
@@ -118,7 +119,15 @@ class AdminDetailsPage extends StatelessWidget {
   }
 
   Widget _buildPostCard(BuildContext context, BlogPost post) {
-    return Card(
+  return InkWell(
+    onTap: () {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => PostDetailsPage(post: post),
+        ),
+      );
+    },
+    child: Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(15.0),
       ),
@@ -138,10 +147,27 @@ class AdminDetailsPage extends StatelessWidget {
               ),
             ),
             SizedBox(height: 8),
-            Text(post.content),
+            Text(
+              post.content,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.grey[800],
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Toque para ler mais...',
+              style: TextStyle(
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+                color: Colors.deepPurple[300],
+              ),
+            ),
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 }

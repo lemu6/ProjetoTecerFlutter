@@ -1,4 +1,4 @@
-name: projeto_tecer
+name: logintest
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -31,15 +31,23 @@ dependencies:
   flutter:
     sdk: flutter
 
-
+  firebase_core: ^2.28.0
+  firebase_auth: ^4.19.0
+  cloud_firestore: ^4.16.0
+  percent_indicator: ^4.2.3
+  provider: ^6.0.0
+  intl: ^0.17.0 
+  firebase_messaging: ^14.8.0
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.6
+  confetti: ^0.7.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
+  
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
@@ -88,12 +96,3 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages
-
-  #assets: 
-
-   #- assets/bone.png
-    #- assets/fb-icon.png
-    #- assets/reset-password-icon.png
-    #- assets/profile-picture.png
-    #- assets/user-picture.png
-    #- assets/app-logo.png

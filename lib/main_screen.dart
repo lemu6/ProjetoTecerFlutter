@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:logintest/ranking_page.dart';
 import 'home_page.dart';
 import 'user_profile_page.dart';
 // Importe sua terceira página de Ranking aqui
@@ -13,6 +14,8 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _pages = [
     UserProfilePage(),
     HomePage(),
+    RankingPage(),
+    
     // Sua terceira página de Ranking aqui
   ];
 
